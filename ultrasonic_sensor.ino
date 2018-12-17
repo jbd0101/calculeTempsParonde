@@ -15,8 +15,8 @@ void calcule_distance(){
     cm=250;//max
   }
   pourcentage = cm*1.0 / base_dist*1.0 *100;
-  Serial.print(cm);
+  /*Serial.print(cm);
   Serial.print(F("cm"));
-  Serial.println();
+  Serial.println(); */
 
   }

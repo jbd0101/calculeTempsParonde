@@ -53,10 +53,14 @@ long duration, cm, inches;
 float pourcentage = 0;
 unsigned long distance =0;
 
+
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 const unsigned long ECHO_INTERVAL = 250;
 unsigned long previousMillis = 0;
-int16_t packetnum = 0;  // packet counter, we increment per xmission
+unsigned long startMillis = 0;
+unsigned long endMillis = 0;
+boolean enCourse = false;
+int16_t packetnum = 0; // packet counter, we increment per xmission
 void setup() {
   //Serial Port begin
   Serial.begin (9600);
@@ -66,7 +70,7 @@ void setup() {
     delay(2000);
 
   // Clear the buffer.
-  printscreen("\n Demarrage",creditText);
+  printscreen(F("\n Demarrage"),creditText);
   delay(500);
  
 
@@ -77,7 +81,7 @@ void setup() {
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
 
-  Serial.println("Feather RFM69 TX Test!");
+  Serial.println(F("Feather RFM69 TX Test!"));
   Serial.println();
 
   // manual reset
@@ -85,7 +89,7 @@ void setup() {
   delay(10);
   digitalWrite(RFM69_RST, LOW);
   delay(10);
-  printscreen("\n Radio",creditText);
+  printscreen(F("\n Radio"),creditText);
 
   if (!rf69.init()) {
     Serial.println(F("RFM69 radio init failed"));
@@ -93,7 +97,7 @@ void setup() {
 
     while (1);
   }
-  printscreen("radio 433mhz",creditText);
+  printscreen(F("radio 433mhz"),creditText);
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
   // No encryption
   if (!rf69.setFrequency(RF69_FREQ)) {
@@ -136,7 +140,7 @@ void setup() {
         break;
       }else{
        printscreen("\n Base Not F.",creditText);
-       delay(250);
+       delay(350);
   
       }
     }
@@ -156,15 +160,23 @@ void loop() {
     
     // Inverse l'état de la LED
     calcule_distance();
-    printscreen((String)"\n "+pourcentage+"%",(String)"Dist: "+cm+"cm");
+    if(enCourse ==false){
+      printscreen((String)"\n READY",(String)"Dist: "+cm+"cm | "+pourcentage+"%");
+    }else{
+      printscreen((String)"\n "+(millis()-startMillis)/1000.0+"s",(String)"Dist: "+cm+"cm");
+
+    }
     if(pourcentage < 30){
         printscreen((String)"\n Passage",(String)"Dist: "+cm+"cm | "+pourcentage+"%");
         
         // uniquement l arduino qui n a pas d ecran envoit des donnees de passage !
         if(SCREEN == false){
           sendPassage();
+        }else{
+          enCourse = true;
+          startMillis = millis();
         }
-        delay(1000);
+        delay(3000);
     }
   }
 
@@ -177,11 +189,14 @@ void loop() {
     if (rf69.recv(buf, &len)) {
       if (!len) return;
       buf[len] = 0;
+      endMillis = millis();
+
       Serial.println((char*)buf);
       Serial.print(F("RSSI: "));
       Serial.println(rf69.lastRssi(), DEC);
-      printscreen(F("\n PASSAGE B2"),F("Passage balise 2"));
-    
+      if(SCREEN==true){
+        printscreen(F("\n PASSAGE B2"),F("Passage balise 2"));
+      }
       if (strstr((char *)buf, "PASSAGE")) {
         // Send a reply!
         uint8_t data[] = "OK";
@@ -190,8 +205,17 @@ void loop() {
         Serial.println(F("Sent a reply"));
         delay(2000);
       }
+      if(SCREEN==true){
+        printscreen(F("\n PASSAGE B2"),F("Passage balise 2"));
+        delay(250);
+        printscreen((String)"\n "+(endMillis-startMillis)/1000.0+"s",F("Passage balise 2"));
+        delay(5000);
+        enCourse=false;
+        startMillis=0;
+        endMillis=0;
+      }
     } else {
-      Serial.println("Receive failed");
+      Serial.println(F("Receive failed"));
     }
   }
 }
